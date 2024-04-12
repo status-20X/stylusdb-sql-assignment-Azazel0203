@@ -5,7 +5,7 @@ const readCSV = require('./csvReader');
 
 async function executeSELECTQuery(query) {
     
-    const { fields, table, whereClauses, joinType, joinTable, joinCondition, groupByFields, hasAggregateWithoutGroupBy, orderByFields} = parseQuery(query);
+    const { fields, table, whereClauses, joinType, joinTable, joinCondition, groupByFields, hasAggregateWithoutGroupBy, orderByFields, limit} = parseQuery(query);
     let data = await readCSV(`${table}.csv`);
 
     
@@ -74,6 +74,9 @@ async function executeSELECTQuery(query) {
                 return 0;
             });
         }
+        if (limit !== null) {
+            groupResults = groupResults.slice(0, limit);
+        }
         return orderedResults;
     } else {
 
@@ -97,7 +100,13 @@ async function executeSELECTQuery(query) {
             });
             return selectedRow;
         });
-        return finalResults;
+
+        let limitResults = finalResults;
+        if (limit !== null) {
+            limitResults = finalResults.slice(0, limit);
+        }
+
+        return limitResults;
     }
 }
 
