@@ -1,4 +1,4 @@
-function parseQuery(query) {
+function parseSelectQuery(query) {
     try{// First, let's trim the query to remove any leading/trailing whitespaces
         query = query.trim();
         let isDistinct = false; // Global DISTINCT, not within COUNT
@@ -140,5 +140,53 @@ function parseWhereClause(whereString) {
     });
 }
 
+function parseInsertQuery(query) {
+    // Simplify the query by removing schema names and table references from column names
+    let simplifiedQuery = query.replace(/"?\w+"?\."(\w+)"?/g, '$1');
 
-module.exports = {parseQuery, parseJoinClause};
+    // Parse the INSERT INTO part
+    const insertRegex = /INSERT INTO "?(\w+)"?\s\(([^)]+)\)\sVALUES\s\(([^)]+)\)/i;
+    const match = simplifiedQuery.match(insertRegex);
+
+    if (!match) {
+        throw new Error("Invalid INSERT INTO syntax.");
+    }
+
+    const [, table, columns, values] = match;
+
+    // Function to clean and remove surrounding quotes from column names
+    const cleanColumnName = (name) => {
+        return name.trim().replace(/^"?(.+?)"?$/g, '$1');
+    };
+
+    // Function to clean and remove surrounding single quotes from values
+    const cleanValue = (value) => {
+        return value.trim().replace(/^'(.*)'$/g, '$1').replace(/^"(.*)"$/g, '$1');
+    };
+
+    // Function to clean returning column names by removing table prefixes and quotes
+    const cleanReturningColumn = (name) => {
+        return name.trim().replace(/\w+\./g, '').replace(/^"?(.+?)"?$/g, '$1');
+    };
+
+    // Parse and clean columns and values
+    const parsedColumns = columns.split(',').map(cleanColumnName);
+    const parsedValues = values.split(',').map(cleanValue);
+
+    // Parse the RETURNING part if present
+    const returningMatch = simplifiedQuery.match(/RETURNING\s(.+)$/i);
+    const returningColumns = returningMatch
+        ? returningMatch[1].split(',').map(cleanReturningColumn)
+        : [];
+    return {
+        type: 'INSERT',
+        table: cleanColumnName(table),
+        columns: parsedColumns,
+        values: parsedValues,
+        returningColumns
+    };
+}
+
+
+
+module.exports = {parseSelectQuery, parseJoinClause, parseInsertQuery};
