@@ -2,21 +2,38 @@ function parseQuery(query) {
     // First, let's trim the query to remove any leading/trailing whitespaces
     query = query.trim();
 
-    // Initialize variables for different parts of the query
-    // let selectPart, fromPart;
+    const orderByRegex = /\sORDER BY\s(.+)/i;
+    const orderByMatch = query.match(orderByRegex);
+    let orderByFields = null;
+    if (orderByMatch) {
+        orderByFields = orderByMatch[1].split(',').map(field => {
+            const [fieldName, order] = field.trim().split(/\s+/);
+            return { fieldName, order: order ? order.toUpperCase() : 'ASC' };
+        });
+        query = query.replace(orderByRegex, '');
+    }
+    // Updated regex to capture GROUP BY clause
+    const groupByRegex = /\sGROUP BY\s(.+)/i;
+    const groupByMatch = query.match(groupByRegex);
+
+    let groupByFields = null;
+    if (groupByMatch) {
+        groupByFields = groupByMatch[1].split(',').map(field => field.trim());
+        query = query.replace(groupByRegex, '');
+    }
 
     // Split the query at the WHERE clause if it exists
     const whereSplit = query.split(/\sWHERE\s/i);
-    query = whereSplit[0]; // Everything before WHERE clause
+    const queryWithoutWhere = whereSplit[0]; // Everything before WHERE clause
 
     // WHERE clause is the second part after splitting, if it exists
     const whereClause = whereSplit.length > 1 ? whereSplit[1].trim() : null;
 
     // Split the remaining query at the JOIN clause if it exists
-    const joinSplit = query.split(/\s(INNER|LEFT|RIGHT) JOIN\s/i);
+    const joinSplit = queryWithoutWhere.split(/\s(INNER|LEFT|RIGHT) JOIN\s/i);
     const selectPart = joinSplit[0].trim(); // Everything before JOIN clause
 
-    const { joinType, joinTable, joinCondition } = parseJoinClause(query);
+    const { joinType, joinTable, joinCondition } = parseJoinClause(queryWithoutWhere);
 
     // Parse the SELECT part
     const selectRegex = /^SELECT\s(.+?)\sFROM\s(.+)/i;
@@ -25,7 +42,7 @@ function parseQuery(query) {
         throw new Error('Invalid SELECT format');
     }
 
-    const [, fields, table] = selectMatch;
+    let [, fields, table] = selectMatch;
 
     // Parse the WHERE part if it exists
     let whereClauses = [];
@@ -33,14 +50,32 @@ function parseQuery(query) {
         whereClauses = parseWhereClause(whereClause);
     }
 
+    const hasAggregateWithoutGroupBy = checkAggregateWithoutGroupBy(query, groupByFields);
+
+    // Temporarily replace commas within parentheses to avoid incorrect splitting
+    const tempPlaceholder = '__TEMP_COMMA__'; // Ensure this placeholder doesn't appear in your actual queries
+    fields = fields.replace(/\(([^)]+)\)/g, (match) => match.replace(/,/g, tempPlaceholder));
+
+    // Now split fields and restore any temporary placeholders
+    const parsedFields = fields.split(',').map(field =>
+    field.trim().replace(new RegExp(tempPlaceholder, 'g'), ','));
+
     return {
-        fields: fields.split(',').map(field => field.trim()),
+        fields: parsedFields,
         table: table.trim(),
         whereClauses,
         joinType,
         joinTable,
-        joinCondition
+        joinCondition,
+        groupByFields, 
+        hasAggregateWithoutGroupBy
     };
+}
+
+
+function checkAggregateWithoutGroupBy(query, groupByFields) {
+    const aggregateFunctionRegex = /(\bCOUNT\b|\bAVG\b|\bSUM\b|\bMIN\b|\bMAX\b)\s*\(\s*(\*|\w+)\s*\)/i;
+    return aggregateFunctionRegex.test(query) && !groupByFields;
 }
 
 
@@ -69,16 +104,21 @@ function parseJoinClause(query) {
 
 
 function parseWhereClause(whereString) {
-    const conditionRegex = /(.*?)(=|!=|>|<|>=|<=)(.*)/;
+    const conditionRegex = /(.*?)(=|!=|>=|<=|>|<)(.*)/;
     return whereString.split(/ AND | OR /i).map(conditionString => {
-        const match = conditionString.match(conditionRegex);
-        if (match) {
-            const [, field, operator, value] = match;
-            return { field: field.trim(), operator, value: value.trim() };
+        if (conditionString.includes(' LIKE ')) {
+            const [field, pattern] = conditionString.split(/\sLIKE\s/i);
+            return { field: field.trim(), operator: 'LIKE', value: pattern.trim().replace(/^'(.*)'$/, '$1') };
+        } else {
+            const match = conditionString.match(conditionRegex);
+            if (match) {
+                const [, field, operator, value] = match;
+                return { field: field.trim(), operator, value: value.trim() };
+            }
+            throw new Error('Invalid WHERE clause format');
         }
-        throw new Error('Invalid WHERE clause format');
     });
 }
 
 
-module.exports = {parseQuery};
+module.exports = {parseQuery, parseJoinClause};
