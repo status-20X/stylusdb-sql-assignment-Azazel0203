@@ -5,7 +5,7 @@ const readCSV = require('./csvReader');
 
 async function executeSELECTQuery(query) {
     
-    const { fields, table, whereClauses, joinType, joinTable, joinCondition, groupByFields, hasAggregateWithoutGroupBy} = parseQuery(query);
+    const { fields, table, whereClauses, joinType, joinTable, joinCondition, groupByFields, hasAggregateWithoutGroupBy, orderByFields} = parseQuery(query);
     let data = await readCSV(`${table}.csv`);
 
     
@@ -63,10 +63,30 @@ async function executeSELECTQuery(query) {
     } else if (groupByFields){
         groupResults = applyGroupBy(filteredData, groupByFields, fields);
         // Order them by the specified fields
+
         let orderedResults = groupResults;
+        if (orderByFields) {
+            orderedResults = groupResults.sort((a, b) => {
+                for (let { fieldName, order } of orderByFields) {
+                    if (a[fieldName] < b[fieldName]) return order === 'ASC' ? -1 : 1;
+                    if (a[fieldName] > b[fieldName]) return order === 'ASC' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
         return orderedResults;
     } else {
+
         let orderedResults = groupResults;
+        if (orderByFields) {
+            orderedResults = groupResults.sort((a, b) => {
+                for (let { fieldName, order } of orderByFields) {
+                    if (a[fieldName] < b[fieldName]) return order === 'ASC' ? -1 : 1;
+                    if (a[fieldName] > b[fieldName]) return order === 'ASC' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
         // Select the specified fields
         // Select the specified fields
         let finalResults = orderedResults.map(row => {

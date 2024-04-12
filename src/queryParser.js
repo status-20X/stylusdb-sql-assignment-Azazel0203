@@ -68,7 +68,8 @@ function parseQuery(query) {
         joinTable,
         joinCondition,
         groupByFields, 
-        hasAggregateWithoutGroupBy
+        hasAggregateWithoutGroupBy,
+        orderByFields
     };
 }
 
