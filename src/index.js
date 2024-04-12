@@ -5,7 +5,7 @@ const readCSV = require('./csvReader');
 
 async function executeSELECTQuery(query) {
     try {
-        const { fields, table, whereClauses, joinType, joinTable, joinCondition, groupByFields, hasAggregateWithoutGroupBy, orderByFields, limit} = parseQuery(query);
+        const { fields, table, whereClauses, joinType, joinTable, joinCondition, groupByFields, hasAggregateWithoutGroupBy, orderByFields, limit, isDistinct} = parseQuery(query);
         let data = await readCSV(`${table}.csv`);
 
         
@@ -101,9 +101,15 @@ async function executeSELECTQuery(query) {
                 return selectedRow;
             });
 
-            let limitResults = finalResults;
+            let distinctResults = finalResults;
+            if (isDistinct) {
+                distinctResults = [...new Map(finalResults.map(item => [fields.map(field => item[field]).join('|'), item])).values()];
+            }
+
+
+            let limitResults = distinctResults;
             if (limit !== null) {
-                limitResults = finalResults.slice(0, limit);
+                limitResults = distinctResults.slice(0, limit);
             }
 
             return limitResults;

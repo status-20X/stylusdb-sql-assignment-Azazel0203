@@ -1,8 +1,13 @@
 function parseQuery(query) {
     try{// First, let's trim the query to remove any leading/trailing whitespaces
         query = query.trim();
+        let isDistinct = false; // Global DISTINCT, not within COUNT
 
 
+        if (query.toUpperCase().includes('SELECT DISTINCT')) {
+            isDistinct = true;
+            query = query.replace('SELECT DISTINCT', 'SELECT');
+        }
         const limitRegex = /\sLIMIT\s(\d+)/i;
         const limitMatch = query.match(limitRegex);
         let limit = null;
@@ -79,7 +84,8 @@ function parseQuery(query) {
             groupByFields, 
             hasAggregateWithoutGroupBy,
             orderByFields,
-            limit
+            limit,
+            isDistinct
         };
     } catch (error){
         throw new Error(`Query parsing error: ${error.message}`);
