@@ -12,6 +12,7 @@ async function executeDELETEQuery(query) {
         // If no where clause, clear the entire table
         data = [];
     }
+    
 
     // Save the updated data back to the CSV file
     await writeCSV(`${table}.csv`, data);
