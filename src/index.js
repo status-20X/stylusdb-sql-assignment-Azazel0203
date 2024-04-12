@@ -6,15 +6,12 @@ async function executeDELETEQuery(query) {
     let data = await readCSV(`${table}.csv`);
 
     if (whereClauses.length > 0) {
-        // Filter out the rows that meet the where clause conditions
         data = data.filter(row => !whereClauses.every(clause => evaluateCondition(row, clause)));
     } else {
-        // If no where clause, clear the entire table
         data = [];
     }
     
 
-    // Save the updated data back to the CSV file
     await writeCSV(`${table}.csv`, data);
 
     return { message: "Rows deleted successfully." };
@@ -27,7 +24,6 @@ async function executeSELECTQuery(query) {
         let data = await readCSV(`${table}.csv`);
 
         
-        // Logic for applying JOINs
         if (joinTable && joinCondition) {
             const joinData = await readCSV(`${joinTable}.csv`);
             switch (joinType.toUpperCase()) {
@@ -44,14 +40,12 @@ async function executeSELECTQuery(query) {
                     throw new Error(`Unsupported JOIN type: ${joinType}`);
             }
         }
-        // Apply WHERE clause filtering after JOIN (or on the original data if no join)
         const filteredData = whereClauses.length > 0
             ? data.filter(row => whereClauses.every(clause => evaluateCondition(row, clause)))
             : data;
 
         let groupResults = filteredData;
         if (hasAggregateWithoutGroupBy) {
-            // Special handling for queries like 'SELECT COUNT(*) FROM table'
             const result = {};
             fields.forEach(field => {
                 const match = /(\w+)\((\*|\w+)\)/.exec(field);
@@ -73,15 +67,12 @@ async function executeSELECTQuery(query) {
                         case 'MAX':
                             result[field] = Math.max(...filteredData.map(row => parseFloat(row[aggField])));
                             break;
-                        // Additional aggregate functions can be handled here
                     }
                 }
             });
             return [result];
         } else if (groupByFields){
             groupResults = applyGroupBy(filteredData, groupByFields, fields);
-            // Order them by the specified fields
-
             let orderedResults = groupResults;
             if (orderByFields) {
                 orderedResults = groupResults.sort((a, b) => {
@@ -108,12 +99,9 @@ async function executeSELECTQuery(query) {
                     return 0;
                 });
             }
-            // Select the specified fields
-            // Select the specified fields
             let finalResults = orderedResults.map(row => {
                 const selectedRow = {};
                 fields.forEach(field => {
-                    // Assuming 'field' is just the column name without table prefix
                     selectedRow[field] = row[field];
                 });
                 return selectedRow;
@@ -141,17 +129,14 @@ async function executeSELECTQuery(query) {
 function evaluateCondition(row, clause) {
     let { field, operator, value } = clause;
 
-    // Check if the field exists in the row
     if (row[field] === undefined) {
         throw new Error(`Invalid field: ${field}`);
     }
 
-    // Parse row value and condition value based on their actual types
     const rowValue = parseValue(row[field]);
     let conditionValue = parseValue(value);
 
     if (operator === 'LIKE') {
-        // Transform SQL LIKE pattern to JavaScript RegExp pattern
         const regexPattern = '^' + value.replace(/%/g, '.*').replace(/_/g, '.') + '$';
         const regex = new RegExp(regexPattern, 'i'); // 'i' for case-insensitive matching
         return regex.test(row[field]);
@@ -171,21 +156,17 @@ function evaluateCondition(row, clause) {
 
 function parseValue(value) {
 
-    // Return null or undefined as is
     if (value === null || value === undefined) {
         return value;
     }
 
-    // If the value is a string enclosed in single or double quotes, remove them
     if (typeof value === 'string' && ((value.startsWith("'") && value.endsWith("'")) || (value.startsWith('"') && value.endsWith('"')))) {
         value = value.substring(1, value.length - 1);
     }
 
-    // Check if value is a number
     if (!isNaN(value) && value.trim() !== '') {
         return Number(value);
     }
-    // Assume value is a string if not a number
     return value;
 }
 
@@ -202,7 +183,6 @@ function applyGroupBy(data, groupByFields, aggregateFunctions) {
             groupByFields.forEach(field => groupResults[groupKey][field] = row[field]);
         }
 
-        // Aggregate calculations
         groupResults[groupKey].count += 1;
         aggregateFunctions.forEach(func => {
             const match = /(\w+)\((\w+)\)/.exec(func);
@@ -220,15 +200,12 @@ function applyGroupBy(data, groupByFields, aggregateFunctions) {
                     case 'MAX':
                         groupResults[groupKey].maxes[aggField] = Math.max(groupResults[groupKey].maxes[aggField] || value, value);
                         break;
-                    // Additional aggregate functions can be added here
                 }
             }
         });
     });
 
-    // Convert grouped results into an array format
     return Object.values(groupResults).map(group => {
-        // Construct the final grouped object based on required fields
         const finalGroup = {};
         groupByFields.forEach(field => finalGroup[field] = group[field]);
         aggregateFunctions.forEach(func => {
@@ -248,7 +225,6 @@ function applyGroupBy(data, groupByFields, aggregateFunctions) {
                     case 'COUNT':
                         finalGroup[func] = group.count;
                         break;
-                    // Additional aggregate functions can be handled here
                 }
             }
         });
@@ -279,14 +255,12 @@ function createResultRow(mainRow, joinRow, fields, table, includeAllMainFields) 
     const resultRow = {};
 
     if (includeAllMainFields) {
-        // Include all fields from the main table
         Object.keys(mainRow || {}).forEach(key => {
             const prefixedKey = `${table}.${key}`;
             resultRow[prefixedKey] = mainRow ? mainRow[key] : null;
         });
     }
 
-    // Now, add or overwrite with the fields specified in the query
     fields.forEach(field => {
         const [tableName, fieldName] = field.includes('.') ? field.split('.') : [table, field];
         resultRow[field] = tableName === table && mainRow ? mainRow[fieldName] : joinRow ? joinRow[fieldName] : null;
@@ -317,9 +291,8 @@ function performLeftJoin(data, joinData, joinCondition, fields, table) {
 }
 
 function performRightJoin(data, joinData, joinCondition, fields, table) {
-    // Cache the structure of a main table row (keys only)
     const mainTableRowStructure = data.length > 0 ? Object.keys(data[0]).reduce((acc, key) => {
-        acc[key] = null; // Set all values to null initially
+        acc[key] = null; 
         return acc;
     }, {}) : {};
 
@@ -330,10 +303,8 @@ function performRightJoin(data, joinData, joinCondition, fields, table) {
             return mainValue === joinValue;
         });
 
-        // Use the cached structure if no match is found
         const mainRowToUse = mainRowMatch || mainTableRowStructure;
 
-        // Include all necessary fields from the 'student' table
         return createResultRow(mainRowToUse, joinRow, fields, table, true);
     });
 }
@@ -342,18 +313,15 @@ async function executeINSERTQuery(query) {
     const { table, columns, values, returningColumns } = parseInsertQuery(query);
     const data = await readCSV(`${table}.csv`);
 
-    // Check if 'id' column is included in the query and in CSV headers
     let newId = null;
     if (!columns.includes('id') && data.length > 0 && 'id' in data[0]) {
-        // 'id' column not included in the query, so we auto-generate an ID
         const existingIds = data.map(row => parseInt(row.id)).filter(id => !isNaN(id));
         const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0;
         newId = maxId + 1;
         columns.push('id');
-        values.push(newId.toString()); // Add as a string
+        values.push(newId.toString()); 
     }
 
-    // Create a new row object matching the CSV structure
     const headers = data.length > 0 ? Object.keys(data[0]) : columns;
     const newRow = {};
     headers.forEach(header => {
@@ -369,13 +337,10 @@ async function executeINSERTQuery(query) {
         }
     });
 
-    // Add the new row to the data
     data.push(newRow);
 
-    // Save the updated data back to the CSV file
     await writeCSV(`${table}.csv`, data);
 
-    // Prepare the returning result if returningColumns are specified
     let returningResult = {};
     if (returningColumns.length > 0) {
         returningColumns.forEach(column => {

@@ -1,7 +1,7 @@
 function parseSelectQuery(query) {
-    try{// First, let's trim the query to remove any leading/trailing whitespaces
+    try{
         query = query.trim();
-        let isDistinct = false; // Global DISTINCT, not within COUNT
+        let isDistinct = false; 
 
 
         if (query.toUpperCase().includes('SELECT DISTINCT')) {
@@ -13,7 +13,7 @@ function parseSelectQuery(query) {
         let limit = null;
         if (limitMatch) {
             limit = parseInt(limitMatch[1], 10);
-            query = query.replace(limitRegex, ''); // Remove LIMIT clause
+            query = query.replace(limitRegex, ''); 
         }
 
         const orderByRegex = /\sORDER BY\s(.+)/i;
@@ -26,7 +26,6 @@ function parseSelectQuery(query) {
             });
             query = query.replace(orderByRegex, '');
         }
-        // Updated regex to capture GROUP BY clause
         const groupByRegex = /\sGROUP BY\s(.+)/i;
         const groupByMatch = query.match(groupByRegex);
 
@@ -36,20 +35,16 @@ function parseSelectQuery(query) {
             query = query.replace(groupByRegex, '');
         }
 
-        // Split the query at the WHERE clause if it exists
         const whereSplit = query.split(/\sWHERE\s/i);
-        const queryWithoutWhere = whereSplit[0]; // Everything before WHERE clause
+        const queryWithoutWhere = whereSplit[0]; 
 
-        // WHERE clause is the second part after splitting, if it exists
         const whereClause = whereSplit.length > 1 ? whereSplit[1].trim() : null;
 
-        // Split the remaining query at the JOIN clause if it exists
         const joinSplit = queryWithoutWhere.split(/\s(INNER|LEFT|RIGHT) JOIN\s/i);
-        const selectPart = joinSplit[0].trim(); // Everything before JOIN clause
+        const selectPart = joinSplit[0].trim(); 
 
         const { joinType, joinTable, joinCondition } = parseJoinClause(queryWithoutWhere);
 
-        // Parse the SELECT part
         const selectRegex = /^SELECT\s(.+?)\sFROM\s(.+)/i;
         const selectMatch = selectPart.match(selectRegex);
         if (!selectMatch) {
@@ -58,7 +53,6 @@ function parseSelectQuery(query) {
 
         let [, fields, table] = selectMatch;
 
-        // Parse the WHERE part if it exists
         let whereClauses = [];
         if (whereClause) {
             whereClauses = parseWhereClause(whereClause);
@@ -66,11 +60,9 @@ function parseSelectQuery(query) {
 
         const hasAggregateWithoutGroupBy = checkAggregateWithoutGroupBy(query, groupByFields);
 
-        // Temporarily replace commas within parentheses to avoid incorrect splitting
         const tempPlaceholder = '__TEMP_COMMA__'; // Ensure this placeholder doesn't appear in your actual queries
         fields = fields.replace(/\(([^)]+)\)/g, (match) => match.replace(/,/g, tempPlaceholder));
 
-        // Now split fields and restore any temporary placeholders
         const parsedFields = fields.split(',').map(field =>
         field.trim().replace(new RegExp(tempPlaceholder, 'g'), ','));
 
@@ -141,10 +133,8 @@ function parseWhereClause(whereString) {
 }
 
 function parseInsertQuery(query) {
-    // Simplify the query by removing schema names and table references from column names
     let simplifiedQuery = query.replace(/"?\w+"?\."(\w+)"?/g, '$1');
 
-    // Parse the INSERT INTO part
     const insertRegex = /INSERT INTO "?(\w+)"?\s\(([^)]+)\)\sVALUES\s\(([^)]+)\)/i;
     const match = simplifiedQuery.match(insertRegex);
 
@@ -154,26 +144,21 @@ function parseInsertQuery(query) {
 
     const [, table, columns, values] = match;
 
-    // Function to clean and remove surrounding quotes from column names
     const cleanColumnName = (name) => {
         return name.trim().replace(/^"?(.+?)"?$/g, '$1');
     };
 
-    // Function to clean and remove surrounding single quotes from values
     const cleanValue = (value) => {
         return value.trim().replace(/^'(.*)'$/g, '$1').replace(/^"(.*)"$/g, '$1');
     };
 
-    // Function to clean returning column names by removing table prefixes and quotes
     const cleanReturningColumn = (name) => {
         return name.trim().replace(/\w+\./g, '').replace(/^"?(.+?)"?$/g, '$1');
     };
 
-    // Parse and clean columns and values
     const parsedColumns = columns.split(',').map(cleanColumnName);
     const parsedValues = values.split(',').map(cleanValue);
 
-    // Parse the RETURNING part if present
     const returningMatch = simplifiedQuery.match(/RETURNING\s(.+)$/i);
     const returningColumns = returningMatch
         ? returningMatch[1].split(',').map(cleanReturningColumn)
