@@ -1,4 +1,4 @@
-const readCSV = require('../../src/csvReader');
+const readCSV = require('../../src/src1_4/csvReader');
 
 test('Read CSV File', async () => {
     const data = await readCSV('./sample.csv');
