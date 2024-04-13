@@ -1,5 +1,5 @@
 const {
-    parseQuery,
+    parseSelectQuery,
     parseDeleteQuery,
     parseInsertQuery,
   } = require("./queryParser.js");
@@ -8,7 +8,7 @@ const {
   async function executeSELECTQuery(query) {
     try {
       const { fields, table, whereClauses, joinTable, joinCondition, groupByFields ,hasAggregateWithoutGroupBy, isApproximateCount, orderByFields, limit, isDistinct, distinctFields, isCountDistinct } =
-        parseQuery(query);
+        parseSelectQuery(query);
       // // console.log(joinType);
       // console.log(joinTable);
       // console.log(joinCondition);

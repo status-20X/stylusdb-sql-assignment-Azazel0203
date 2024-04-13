@@ -1,4 +1,4 @@
-function parseQuery(query) {
+function parseSelectQuery(query) {
     try {
   
         // Trim the query to remove any leading/trailing whitespaces
@@ -248,4 +248,4 @@ function parseQuery(query) {
   }
   
   
-  module.exports = {parseQuery, parseJoinClause, parseInsertQuery, parseDeleteQuery };
+  module.exports = {parseSelectQuery, parseJoinClause, parseInsertQuery, parseDeleteQuery };
