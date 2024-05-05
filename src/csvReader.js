@@ -5,6 +5,7 @@ const { parse } = require('json2csv');
 function readCSV(filePath) {
     const results = [];
 
+
     return new Promise((resolve, reject) => {
         fs.createReadStream(filePath)
             .pipe(csv())
